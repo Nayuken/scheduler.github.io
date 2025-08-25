@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task & Calendar Manager</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      min-height: 100vh;
+      background: #f4f4f9;
+    }
+    
+    .sidebar {
+      width: 30%;
+      background: white;
+      padding: 20px;
+      box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      margin-top: 0;
+    }
+
+    .task-input {
+      display: flex;
+      margin-bottom: 10px;
+    }
+    .task-input input {
+      flex: 1;
+      padding: 8px;
+    }
+    .task-input button {
+      padding: 8px 12px;
+      margin-left: 5px;
+      cursor: pointer;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      padding: 8px;
+      background: #eaeaea;
+      margin-bottom: 5px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    li span {
+      flex: 1;
+      margin-left: 8px;
+    }
+
+    .calendar {
+      flex: 1;
+      padding: 20px;
+    }
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    td, th {
+      border: 1px solid #ccc;
+      width: 14.28%;
+      text-align: center;
+      padding: 10px;
+      cursor: pointer;
+    }
+    td:hover {
+      background: #d3e0ff;
+    }
+    .highlight {
+      background: #90caf9 !important;
+    }
+    button.nav {
+      padding: 6px 10px;
+      cursor: pointer;
+      border: none;
+      background: #90caf9;
+      color: white;
+      border-radius: 5px;
+    }
+
+    .scoreboard {
+      margin-top: 20px;
+      padding: 10px;
+      background: #f0f0f0;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <h2>Tasks</h2>
+    <div class="task-input">
+      <input type="text" id="taskInput" placeholder="New task...">
+      <button onclick="addTask()">Add</button>
+    </div>
+    <ul id="taskList"></ul>
+    <div class="scoreboard">
+      <p>Daily Score: <span id="dailyScore">0</span></p>
+      <p>Weekly Score: <span id="weeklyScore">0</span></p>
+      <p>Monthly Score: <span id="monthlyScore">0</span></p>
+    </div>
+  </div>
+
+  <div class="calendar">
+    <div class="calendar-header">
+      <button class="nav" onclick="prevMonth()">◀</button>
+      <h2 id="monthYear"></h2>
+      <button class="nav" onclick="nextMonth()">▶</button>
+    </div>
+    <table id="calendarTable"></table>
+  </div>
+
+  <script>
+    const taskList = document.getElementById("taskList");
+    let tasks = {};
+    let selectedDate = null;
+    let currentMonth, currentYear;
+
+    function addTask() {
+      const input = document.getElementById("taskInput");
+      if (input.value.trim() !== "" && selectedDate) {
+        if (!tasks[selectedDate]) tasks[selectedDate] = [];
+        tasks[selectedDate].push({ text: input.value, completed: false });
+        input.value = "";
+        renderTasks();
+      } else {
+        alert("Please select a date on the calendar and enter a task!");
+      }
+    }
+
+    function renderTasks() {
+      taskList.innerHTML = "";
+      if (tasks[selectedDate]) {
+        tasks[selectedDate].forEach((task, index) => {
+          const li = document.createElement("li");
+
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = task.completed;
+          checkbox.onchange = () => {
+            task.completed = checkbox.checked;
+            updateScores();
+          };
+
+          const span = document.createElement("span");
+          span.textContent = task.text;
+
+          const btn = document.createElement("button");
+          btn.textContent = "✕";
+          btn.onclick = () => {
+            tasks[selectedDate].splice(index, 1);
+            renderTasks();
+            updateScores();
+          };
+
+          li.appendChild(checkbox);
+          li.appendChild(span);
+          li.appendChild(btn);
+          taskList.appendChild(li);
+        });
+      }
+      updateScores();
+    }
+
+    function updateScores() {
+      let daily = 0, weekly = 0, monthly = 0;
+      const today = new Date(selectedDate);
+
+      for (let date in tasks) {
+        const d = new Date(date);
+        tasks[date].forEach(task => {
+          if (task.completed) {
+            if (date === selectedDate) daily++;
+
+            // Check if same week
+            const weekStart = new Date(today);
+            weekStart.setDate(today.getDate() - today.getDay());
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekStart.getDate() + 6);
+            if (d >= weekStart && d <= weekEnd) weekly++;
+
+            // Check if same month
+            if (d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear()) {
+              monthly++;
+            }
+          }
+        });
+      }
+
+      document.getElementById("dailyScore").textContent = daily;
+      document.getElementById("weeklyScore").textContent = weekly;
+      document.getElementById("monthlyScore").textContent = monthly;
+    }
+
+    function generateCalendar(month, year) {
+      currentMonth = month;
+      currentYear = year;
+
+      const table = document.getElementById("calendarTable");
+      table.innerHTML = "";
+
+      const monthYear = document.getElementById("monthYear");
+      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      monthYear.textContent = `${monthNames[month]} ${year}`;
+
+      const firstDay = new Date(year, month).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      let date = 1;
+      for (let i = 0; i < 6; i++) {
+        const row = document.createElement("tr");
+        for (let j = 0; j < 7; j++) {
+          const cell = document.createElement("td");
+          if (i === 0 && j < firstDay) {
+            cell.textContent = "";
+          } else if (date > daysInMonth) {
+            break;
+          } else {
+            cell.textContent = date;
+            const fullDate = `${year}-${month+1}-${date}`;
+            cell.onclick = () => {
+              selectedDate = fullDate;
+              document.querySelectorAll("td").forEach(td => td.classList.remove("highlight"));
+              cell.classList.add("highlight");
+              renderTasks();
+            };
+            date++;
+          }
+          row.appendChild(cell);
+        }
+        table.appendChild(row);
+      }
+    }
+
+    function prevMonth() {
+      currentMonth--;
+      if (currentMonth < 0) {
+        currentMonth = 11;
+        currentYear--;
+      }
+      generateCalendar(currentMonth, currentYear);
+    }
+
+    function nextMonth() {
+      currentMonth++;
+      if (currentMonth > 11) {
+        currentMonth = 0;
+        currentYear++;
+      }
+      generateCalendar(currentMonth, currentYear);
+    }
+
+    const today = new Date();
+    generateCalendar(today.getMonth(), today.getFullYear());
+  </script>
+</body>
+</html>
