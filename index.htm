@@ -131,6 +131,37 @@
     let selectedDate = null;
     let currentMonth, currentYear;
 
+    // Cookie helpers
+    function setCookie(name, value, days) {
+      const d = new Date();
+      d.setTime(d.getTime() + (days*24*60*60*1000));
+      const expires = "expires=" + d.toUTCString();
+      document.cookie = name + "=" + encodeURIComponent(value) + ";" + expires + ";path=/";
+    }
+
+    function getCookie(name) {
+      const cname = name + "=";
+      const decodedCookie = decodeURIComponent(document.cookie);
+      const ca = decodedCookie.split(';');
+      for(let i=0; i<ca.length; i++) {
+        let c = ca[i].trim();
+        if (c.indexOf(cname) === 0) {
+          return c.substring(cname.length, c.length);
+        }
+      }
+      return "";
+    }
+
+    // Load tasks from cookie if exists
+    const saved = getCookie("tasksData");
+    if (saved) {
+      try {
+        tasks = JSON.parse(saved);
+      } catch(e) {
+        tasks = {};
+      }
+    }
+
     function addTask() {
       const input = document.getElementById("taskInput");
       if (input.value.trim() !== "" && selectedDate) {
@@ -155,6 +186,7 @@
           checkbox.onchange = () => {
             task.completed = checkbox.checked;
             updateScores();
+            saveTasks();
           };
 
           const span = document.createElement("span");
@@ -166,6 +198,7 @@
             tasks[selectedDate].splice(index, 1);
             renderTasks();
             updateScores();
+            saveTasks();
           };
 
           li.appendChild(checkbox);
@@ -175,10 +208,12 @@
         });
       }
       updateScores();
+      saveTasks();
     }
 
     function updateScores() {
       let daily = 0, weekly = 0, monthly = 0;
+      if (!selectedDate) return;
       const today = new Date(selectedDate);
 
       for (let date in tasks) {
@@ -205,6 +240,10 @@
       document.getElementById("dailyScore").textContent = daily;
       document.getElementById("weeklyScore").textContent = weekly;
       document.getElementById("monthlyScore").textContent = monthly;
+    }
+
+    function saveTasks() {
+      setCookie("tasksData", JSON.stringify(tasks), 7);
     }
 
     function generateCalendar(month, year) {
